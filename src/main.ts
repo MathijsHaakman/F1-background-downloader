@@ -1,11 +1,13 @@
 import probe, { ProbeResult } from 'probe-image-size';
-import { createWriteStream, mkdirSync } from 'fs';
+import { createWriteStream } from 'fs';
 import { get } from 'https';
+import { checkAndCreateValidFolder, readBookmarksFile } from './fileHelper';
+import { once } from 'events';
 
 type ImageResolution = Pick<ProbeResult, "width" | "height">;
 
-const IMAGE_URL = 'https://pbs.twimg.com/media/FMceCAbXIAItvrJ?format=jpg&name=large';
-const DEST_PATH = '/mnt/e/Keut/Downloads/F1/Backgrounds'
+const DEST_PATH = '/mnt/e/Keut/Downloads/F1/Backgrounds';
+const BOOKMARKS_FILE_PATH = '/mnt/e/Keut/Downloads/F1/backgroundBookmarks.txt';
 const MINIMUM_HEIGHT = 1080;
 const MINIMUM_WIDTH = 1920;
 
@@ -17,9 +19,7 @@ const prepareUrl = (url: string): string => {
 };
 
 const retrieveImageInfo = async (url: string): Promise<ProbeResult> => {
-  const highDefUrl = prepareUrl(url);
-
-  return await probe(highDefUrl);
+  return await probe(url);
 };
 
 const filterMinimumResolution = (imageResolution: ImageResolution, minimalResolution: ImageResolution): boolean => {
@@ -33,35 +33,30 @@ const filterMinimumResolution = (imageResolution: ImageResolution, minimalResolu
   return true;
 };
 
-const checkAndCreateValidFolder = (destinationPath: string): string => {
-  if(destinationPath.charAt(-1) !== '/') {
-    destinationPath = destinationPath.concat('/');
-  }
-  mkdirSync(destinationPath, {
-    recursive: true
-  });
-  return destinationPath;
-};
-
 const addFileNameToPath = (folderPath: string, url: string): string => {
   let fileName = new URL(url).pathname.split('/').at(-1);
   return `${folderPath}${fileName}.png`;
 };
 
 const downloadImage = async (imageUrl: string, destinationPath: string): Promise<void> => {
-  get(imageUrl, (result) => {
+  get(imageUrl, async (result) => {
     destinationPath = checkAndCreateValidFolder(destinationPath);
     let filePath = addFileNameToPath(destinationPath, imageUrl);
     let writeStream = result.pipe(createWriteStream(filePath));
-    writeStream.once('close', () => {
-      console.log('done');
-    })
+    await once(writeStream, 'close');
+    console.log('Done downloading', imageUrl);
   });
 };
 
-retrieveImageInfo(IMAGE_URL).then(async (result) => {
-  if (filterMinimumResolution(result, { width: MINIMUM_WIDTH, height: MINIMUM_HEIGHT })) {
-    await downloadImage(result.url, DEST_PATH);
-    console.log(result);
+readBookmarksFile(BOOKMARKS_FILE_PATH).then((bookmarks) => {
+  for (const bookmark of bookmarks) {
+    const highDefUrl = prepareUrl(bookmark);
+  
+    retrieveImageInfo(highDefUrl).then(async (result) => {
+      if (filterMinimumResolution(result, { width: MINIMUM_WIDTH, height: MINIMUM_HEIGHT })) {
+        await downloadImage(result.url, DEST_PATH);
+        console.log(result);
+      }
+    });
   }
 });
