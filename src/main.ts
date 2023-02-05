@@ -44,19 +44,21 @@ const downloadImage = async (imageUrl: string, destinationPath: string): Promise
     let filePath = addFileNameToPath(destinationPath, imageUrl);
     let writeStream = result.pipe(createWriteStream(filePath));
     await once(writeStream, 'close');
-    console.log('Done downloading', imageUrl);
   });
 };
 
-readBookmarksFile(BOOKMARKS_FILE_PATH).then((bookmarks) => {
+(async () => {
+  const bookmarks = await readBookmarksFile(BOOKMARKS_FILE_PATH);
   for (const bookmark of bookmarks) {
     const highDefUrl = prepareUrl(bookmark);
-  
-    retrieveImageInfo(highDefUrl).then(async (result) => {
+
+    try {
+      const result = await retrieveImageInfo(highDefUrl);
       if (filterMinimumResolution(result, { width: MINIMUM_WIDTH, height: MINIMUM_HEIGHT })) {
         await downloadImage(result.url, DEST_PATH);
-        console.log(result);
       }
-    });
+    } catch (error) {
+      console.error('Error downloadImage', {error, highDefUrl})
+    }
   }
-});
+})();
