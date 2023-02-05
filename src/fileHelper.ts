@@ -20,7 +20,7 @@ export const readBookmarksFile = async (filePath: string): Promise<string[]> => 
   });
 
   rl.on('line', (line) => {
-    if (isUrl(line)) {
+    if (isTwitterImage(line)) {
       bookmarkList.push(line);
     }
   });
@@ -30,4 +30,4 @@ export const readBookmarksFile = async (filePath: string): Promise<string[]> => 
   return bookmarkList;
 };
 
-const isUrl = (line: string): boolean => line.startsWith('http');
+const isTwitterImage = (line: string): boolean => line.startsWith('https://pbs.twimg.com/media')
