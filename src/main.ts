@@ -3,6 +3,7 @@ import { createWriteStream } from 'fs';
 import { get } from 'https';
 import { checkAndCreateValidFolder, readBookmarksFile } from './fileHelper';
 import { once } from 'events';
+import { IncomingMessage } from 'http';
 
 type ImageResolution = Pick<ProbeResult, "width" | "height">;
 
@@ -38,13 +39,24 @@ const addFileNameToPath = (folderPath: string, url: string): string => {
   return `${folderPath}${fileName}.png`;
 };
 
-const downloadImage = async (imageUrl: string, destinationPath: string): Promise<void> => {
-  get(imageUrl, async (result) => {
-    destinationPath = checkAndCreateValidFolder(destinationPath);
-    let filePath = addFileNameToPath(destinationPath, imageUrl);
-    let writeStream = result.pipe(createWriteStream(filePath));
-    await once(writeStream, 'close');
+const asyncGetRequest = (url: string): Promise<IncomingMessage> => {
+  return new Promise<IncomingMessage>((resolve, reject) => {
+    get(url, (result: IncomingMessage) => {
+      if (result.statusCode === 200) {
+        resolve(result);
+      } else {
+        reject(result);
+      }
+    });
   });
+};
+
+const downloadImage = async (imageUrl: string, destinationPath: string): Promise<void> => {
+  const requestResult = await asyncGetRequest(imageUrl);
+  destinationPath = checkAndCreateValidFolder(destinationPath);
+  let filePath = addFileNameToPath(destinationPath, imageUrl);
+  let writeStream = requestResult.pipe(createWriteStream(filePath));
+  await once(writeStream, 'close');
 };
 
 (async () => {
