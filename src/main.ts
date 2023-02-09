@@ -4,6 +4,7 @@ import { get } from 'https';
 import { checkAndCreateValidFolder, readBookmarksFile } from './fileHelper';
 import { once } from 'events';
 import { IncomingMessage } from 'http';
+import { ProgressBar } from './progressbar';
 
 type ImageResolution = Pick<ProbeResult, "width" | "height">;
 
@@ -61,7 +62,8 @@ const downloadImage = async (imageUrl: string, destinationPath: string): Promise
 
 (async () => {
   const bookmarks = await readBookmarksFile(BOOKMARKS_FILE_PATH);
-  for (const bookmark of bookmarks) {
+  const progressBar = new ProgressBar(bookmarks.length);
+  for (const [i, bookmark] of bookmarks.entries()) {
     const highDefUrl = prepareUrl(bookmark);
 
     try {
@@ -69,6 +71,7 @@ const downloadImage = async (imageUrl: string, destinationPath: string): Promise
       if (filterMinimumResolution(result, { width: MINIMUM_WIDTH, height: MINIMUM_HEIGHT })) {
         await downloadImage(result.url, DEST_PATH);
       }
+      progressBar.update(i+1);
     } catch (error) {
       console.error('Error downloadImage', {error, highDefUrl})
     }
